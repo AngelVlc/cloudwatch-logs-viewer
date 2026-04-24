@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudWatch Viewer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      background: #0f1117;
+      color: #d1d5db;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f9fafb;
+      margin-bottom: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Form ───────────────────────────────────────────────────────────── */
+    form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      max-width: 900px;
+      margin-bottom: 24px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+    }
+
+    input, select {
+      background: #1e2130;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      color: #f9fafb;
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus { border-color: #6366f1; }
+    select option { background: #1e2130; }
+
+    button[type="submit"] {
+      grid-column: 1 / -1;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 18px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button[type="submit"]:hover { background: #4f46e5; }
+    button[type="submit"]:disabled { background: #374151; cursor: not-allowed; }
+
+    /* ── Metadata header ────────────────────────────────────────────────── */
+    #metadata {
+      display: none;
+      background: #1e2130;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 14px 16px;
+      max-width: 900px;
+      margin-bottom: 16px;
+    }
+    #metadata h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+      margin-bottom: 10px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 16px;
+    }
+    .meta-key { color: #6b7280; }
+    .meta-val { color: #a5b4fc; word-break: break-all; }
+
+    /* ── Filters bar ────────────────────────────────────────────────────── */
+    #filters-bar {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      max-width: 900px;
+      margin-bottom: 12px;
+    }
+    .filter-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: #9ca3af;
+      user-select: none;
+    }
+    .filter-toggle input { width: auto; cursor: pointer; }
+    .filter-toggle:hover { color: #d1d5db; }
+
+    /* ── Log lines ──────────────────────────────────────────────────────── */
+    #log-output {
+      max-width: 900px;
+    }
+
+    .log-line {
+      display: grid;
+      grid-template-columns: 100px 60px 1fr;
+      gap: 0 12px;
+      padding: 4px 0;
+      border-bottom: 1px solid #1a1d2a;
+      line-height: 1.5;
+    }
+    .log-line:hover { background: #1a1d2a; }
+
+    .log-time { color: #4b5563; white-space: nowrap; }
+    .log-msg { word-break: break-word; white-space: pre-wrap; }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-align: center;
+      align-self: start;
+    }
+    .badge-INFO    { background: #1e3a5f; color: #60a5fa; }
+    .badge-DEBUG   { background: #1f2937; color: #6b7280; }
+    .badge-ERROR   { background: #4b1c1c; color: #f87171; }
+    .badge-WARN    { background: #3b2a05; color: #fbbf24; }
+    .badge-START   { background: #14532d; color: #4ade80; }
+    .badge-END     { background: #14532d; color: #4ade80; }
+    .badge-REPORT  { background: #1e3a5f; color: #60a5fa; }
+    .badge-UNKNOWN { background: #1f2937; color: #6b7280; }
+
+    /* ── Status messages ────────────────────────────────────────────────── */
+    #status {
+      max-width: 900px;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    #status.loading { background: #1e2130; color: #9ca3af; display: block; }
+    #status.error   { background: #4b1c1c; color: #f87171; display: block; }
+    #status.empty   { background: #1e2130; color: #9ca3af; display: block; }
+  </style>
+</head>
+<body>
+  <h1>CloudWatch Request Viewer</h1>
+
+  <form id="search-form">
+    <div class="field full">
+      <label for="requestId">Request ID</label>
+      <input id="requestId" type="text" placeholder="c35c9eda-826c-41b5-97a8-3209c857eb88" required />
+    </div>
+    <div class="field full">
+      <label for="logGroup">Log Group (one at a time)</label>
+      <select id="logGroup" required></select>
+    </div>
+    <div class="field">
+      <label for="startTime">Start Time</label>
+      <input id="startTime" type="datetime-local" required />
+    </div>
+    <div class="field">
+      <label for="endTime">End Time</label>
+      <input id="endTime" type="datetime-local" required />
+    </div>
+    <button type="submit" id="submit-btn">Search</button>
+  </form>
+
+  <div id="status"></div>
+
+  <div id="metadata">
+    <h2>Request metadata</h2>
+    <div class="meta-grid" id="meta-grid"></div>
+  </div>
+
+  <div id="filters-bar">
+    <label class="filter-toggle">
+      <input type="checkbox" id="toggle-debug" checked /> Show DEBUG
+    </label>
+    <label class="filter-toggle">
+      <input type="checkbox" id="toggle-report" checked /> Show START / END / REPORT
+    </label>
+  </div>
+
+  <div id="log-output"></div>
+
+  <script>
+    let allLogs = [];
+
+    // ── Load config ───────────────────────────────────────────────────────
+    async function loadConfig() {
+      const res = await fetch('/api/config');
+      const data = await res.json();
+      const select = document.getElementById('logGroup');
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a log group';
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      select.appendChild(placeholder);
+
+      data.logGroups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.value;
+        opt.textContent = g.label;
+        select.appendChild(opt);
+      });
+    }
+
+    // ── Pre-fill time range to last hour ─────────────────────────────────
+    function prefillTimes() {
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      document.getElementById('startTime').value = toDatetimeLocal(oneHourAgo);
+      document.getElementById('endTime').value = toDatetimeLocal(now);
+    }
+
+    function toDatetimeLocal(d) {
+      // Format: YYYY-MM-DDTHH:MM in local time
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // ── Search ────────────────────────────────────────────────────────────
+    document.getElementById('search-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const requestId = document.getElementById('requestId').value.trim();
+      const logGroup  = document.getElementById('logGroup').value;
+      const startTime = new Date(document.getElementById('startTime').value).toISOString();
+      const endTime   = new Date(document.getElementById('endTime').value).toISOString();
+
+      if (!logGroup) {
+        setStatus('error', 'Please select one log group');
+        return;
+      }
+
+      setStatus('loading', 'Querying CloudWatch Logs Insights…');
+      clearResults();
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+
+      try {
+        const params = new URLSearchParams({ requestId, logGroup, startTime, endTime });
+        const res = await fetch(`/api/logs?${params}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          setStatus('error', data.error || 'Unknown error');
+          return;
+        }
+
+        if (!data.found) {
+          setStatus('empty', `No logs found for request ID: ${requestId}`);
+          return;
+        }
+
+        hideStatus();
+        renderMetadata(data);
+        allLogs = data.logs;
+        renderLogs();
+      } catch (err) {
+        setStatus('error', `Network error: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ── Filters ───────────────────────────────────────────────────────────
+    document.getElementById('toggle-debug').addEventListener('change', renderLogs);
+    document.getElementById('toggle-report').addEventListener('change', renderLogs);
+
+    function renderLogs() {
+      const showDebug  = document.getElementById('toggle-debug').checked;
+      const showReport = document.getElementById('toggle-report').checked;
+
+      const systemLevels = new Set(['START', 'END', 'REPORT']);
+
+      const toShow = allLogs.filter(log => {
+        if (!showDebug && log.level === 'DEBUG') return false;
+        if (!showReport && systemLevels.has(log.level)) return false;
+        return true;
+      });
+
+      const output = document.getElementById('log-output');
+      output.innerHTML = '';
+
+      toShow.forEach(log => {
+        const line = document.createElement('div');
+        line.className = 'log-line';
+        // Only display HH:MM:SS.mmm from the full timestamp
+        const timePart = log.timestamp.includes(' ')
+          ? log.timestamp.split(' ')[1]
+          : log.timestamp;
+        line.innerHTML = `
+          <span class="log-time">${escapeHtml(timePart)}</span>
+          <span class="badge badge-${log.level}">${log.level}</span>
+          <span class="log-msg">${escapeHtml(log.message)}</span>
+        `;
+        output.appendChild(line);
+      });
+    }
+
+    // ── Metadata ──────────────────────────────────────────────────────────
+    function renderMetadata(data) {
+      const grid = document.getElementById('meta-grid');
+      grid.innerHTML = '';
+
+      const entries = [
+        ['Selected Log Group', data.selectedLogGroup?.label ?? '—'],
+        ['Request ID', data.requestId],
+        ['Fastly Trace ID', data.fastlyTraceId ?? '—'],
+        ['Log Stream', data.logStream ?? '—'],
+        ['Log lines', String(data.logs.length)],
+      ];
+
+      entries.forEach(([key, val]) => {
+        grid.innerHTML += `<span class="meta-key">${key}</span><span class="meta-val">${escapeHtml(val)}</span>`;
+      });
+
+      document.getElementById('metadata').style.display = 'block';
+      document.getElementById('filters-bar').style.display = 'flex';
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function setStatus(type, msg) {
+      const el = document.getElementById('status');
+      el.className = type;
+      el.textContent = msg;
+    }
+    function hideStatus() {
+      document.getElementById('status').style.display = 'none';
+      document.getElementById('status').className = '';
+    }
+    function clearResults() {
+      document.getElementById('metadata').style.display = 'none';
+      document.getElementById('filters-bar').style.display = 'none';
+      document.getElementById('log-output').innerHTML = '';
+      allLogs = [];
+    }
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────
+    loadConfig();
+    prefillTimes();
+  </script>
+</body>
+</html>
