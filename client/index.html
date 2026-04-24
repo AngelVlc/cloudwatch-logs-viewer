@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CloudWatch Viewer</title>
+  <title>CloudWatch Logs Viewer</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -123,7 +124,7 @@
 
     /* ── Log lines ──────────────────────────────────────────────────────── */
     #log-output {
-      max-width: 900px;
+      width: 100%;
     }
 
     .log-line {
@@ -172,7 +173,7 @@
   </style>
 </head>
 <body>
-  <h1>CloudWatch Request Viewer</h1>
+  <h1>CloudWatch Logs Viewer</h1>
 
   <form id="search-form">
     <div class="field full">
@@ -184,11 +185,11 @@
       <select id="logGroup" required></select>
     </div>
     <div class="field">
-      <label for="startTime">Start Time</label>
+      <label for="startTime">Start Time <span style="color:#4b5563;font-size:10px;">(UTC)</span></label>
       <input id="startTime" type="datetime-local" required />
     </div>
     <div class="field">
-      <label for="endTime">End Time</label>
+      <label for="endTime">End Time <span style="color:#4b5563;font-size:10px;">(UTC)</span></label>
       <input id="endTime" type="datetime-local" required />
     </div>
     <button type="submit" id="submit-btn">Search</button>
@@ -236,18 +237,17 @@
       });
     }
 
-    // ── Pre-fill time range to last hour ─────────────────────────────────
+    // ── Pre-fill time range to last hour (UTC) ─────────────────────────
     function prefillTimes() {
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      document.getElementById('startTime').value = toDatetimeLocal(oneHourAgo);
-      document.getElementById('endTime').value = toDatetimeLocal(now);
+      document.getElementById('startTime').value = toUTCDatetimeLocal(oneHourAgo);
+      document.getElementById('endTime').value = toUTCDatetimeLocal(now);
     }
 
-    function toDatetimeLocal(d) {
-      // Format: YYYY-MM-DDTHH:MM in local time
-      const pad = n => String(n).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    // Format a Date as YYYY-MM-DDTHH:MM in UTC
+    function toUTCDatetimeLocal(d) {
+      return d.toISOString().slice(0, 16);
     }
 
     // ── Search ────────────────────────────────────────────────────────────
@@ -255,8 +255,8 @@
       e.preventDefault();
       const requestId = document.getElementById('requestId').value.trim();
       const logGroup  = document.getElementById('logGroup').value;
-      const startTime = new Date(document.getElementById('startTime').value).toISOString();
-      const endTime   = new Date(document.getElementById('endTime').value).toISOString();
+      const startTime = new Date(document.getElementById('startTime').value + ':00Z').toISOString();
+      const endTime   = new Date(document.getElementById('endTime').value + ':00Z').toISOString();
 
       if (!logGroup) {
         setStatus('error', 'Please select one log group');

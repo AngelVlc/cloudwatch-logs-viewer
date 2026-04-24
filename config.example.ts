@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CloudWatch Logs Viewer — Default configuration
-// Do NOT put real values here — this file is committed to git.
-// To override, create config.local.ts (gitignored) with your actual values.
+// CloudWatch Logs Viewer — Configuration template
+// Copy this file to config.ts and fill in your actual values:
+//   cp config.example.ts config.ts
+// config.ts is gitignored and will never be committed.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface LogGroupConfig {

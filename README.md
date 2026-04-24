@@ -1,4 +1,4 @@
-# CloudWatch Request Viewer
+# CloudWatch Logs Viewer
 
 A local web app to search and view AWS CloudWatch Lambda request logs in a clean, readable format.
 
@@ -28,7 +28,13 @@ npm install
 
 ### 2. Configure log groups and AWS profile
 
-Edit `config.ts` and fill in your values:
+`config.ts` is gitignored. Copy the example and fill in your actual values:
+
+```bash
+cp config.example.ts config.ts
+```
+
+Then edit `config.ts`:
 
 ```ts
 export const LOG_GROUPS = [
@@ -49,7 +55,7 @@ export const AWS_PROFILE = "my-aws-profile"; // from ~/.aws/credentials
 npm run dev
 ```
 
-Then open http://localhost:3000 in your browser.
+Then open http://localhost:3005 in your browser.
 
 ## Usage
 
