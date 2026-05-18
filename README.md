@@ -55,8 +55,6 @@ export const AWS_PROFILE = "my-aws-profile"; // from ~/.aws/credentials
 npm run dev
 ```
 
-Then open http://localhost:3005 in your browser.
-
 ## Usage
 
 1. Paste a **Request ID** (e.g. `c35c9eda-826c-41b5-97a8-3209c857eb88`)
@@ -92,3 +90,48 @@ cloudwatch-viewer/
 | `GET /api/logs?requestId=...&logGroup=...&startTime=...&endTime=...` | Queries and returns parsed logs |
 
 `startTime` and `endTime` accept ISO 8601 strings.
+
+## Production Installation (macOS launchd)
+
+Install the app as a persistent background service on macOS:
+
+### Install
+
+```bash
+./scripts/install-production.sh <install-directory> <plist-name>
+```
+
+Example:
+
+```bash
+./scripts/install-production.sh ~/cloudwatch-viewer/production com.cloudwatch-viewer.production.plist
+```
+
+This will:
+
+1. Build the project
+2. Install to the specified directory
+3. Create a `launchd` plist at `~/Library/LaunchAgents/<plist-name>`
+4. Start the service automatically
+
+### Manage the service
+
+```bash
+# Check status
+launchctl list | grep <service-label>
+
+# View logs
+tail -f <install-directory>/logs/stdout.log
+
+# Stop the service
+launchctl unload ~/Library/LaunchAgents/<plist-name>
+
+# Restart (e.g. after config changes)
+launchctl unload ~/Library/LaunchAgents/<plist-name>
+launchctl load ~/Library/LaunchAgents/<plist-name>
+
+# Uninstall completely
+launchctl unload ~/Library/LaunchAgents/<plist-name>
+rm ~/Library/LaunchAgents/<plist-name>
+rm -rf <install-directory>
+```

@@ -13,7 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 // Serve the frontend from /client
-app.use(express.static(path.join(__dirname, "..", "client")));
+app.use(express.static(path.join(process.cwd(), "client")));
 
 // ── GET /api/config ─────────────────────────────────────────────────────────
 // Returns available log groups for the UI dropdown
