@@ -185,11 +185,11 @@
       <select id="logGroup" required></select>
     </div>
     <div class="field">
-      <label for="startTime">Start Time <span style="color:#4b5563;font-size:10px;">(UTC)</span></label>
+      <label for="startTime">Start Time <span style="color:#4b5563;font-size:10px;">(Local)</span></label>
       <input id="startTime" type="datetime-local" required />
     </div>
     <div class="field">
-      <label for="endTime">End Time <span style="color:#4b5563;font-size:10px;">(UTC)</span></label>
+      <label for="endTime">End Time <span style="color:#4b5563;font-size:10px;">(Local)</span></label>
       <input id="endTime" type="datetime-local" required />
     </div>
     <button type="submit" id="submit-btn">Search</button>
@@ -237,17 +237,18 @@
       });
     }
 
-    // ── Pre-fill time range to last hour (UTC) ─────────────────────────
+    // ── Pre-fill time range to last hour (Local) ─────────────────────────
     function prefillTimes() {
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      document.getElementById('startTime').value = toUTCDatetimeLocal(oneHourAgo);
-      document.getElementById('endTime').value = toUTCDatetimeLocal(now);
+      document.getElementById('startTime').value = toLocalDatetimeLocal(oneHourAgo);
+      document.getElementById('endTime').value = toLocalDatetimeLocal(now);
     }
 
-    // Format a Date as YYYY-MM-DDTHH:MM in UTC
-    function toUTCDatetimeLocal(d) {
-      return d.toISOString().slice(0, 16);
+    // Format a Date as YYYY-MM-DDTHH:MM in local time
+    function toLocalDatetimeLocal(d) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
     // ── Search ────────────────────────────────────────────────────────────
@@ -255,8 +256,8 @@
       e.preventDefault();
       const requestId = document.getElementById('requestId').value.trim();
       const logGroup  = document.getElementById('logGroup').value;
-      const startTime = new Date(document.getElementById('startTime').value + ':00Z').toISOString();
-      const endTime   = new Date(document.getElementById('endTime').value + ':00Z').toISOString();
+      const startTime = new Date(document.getElementById('startTime').value).toISOString();
+      const endTime   = new Date(document.getElementById('endTime').value).toISOString();
 
       if (!logGroup) {
         setStatus('error', 'Please select one log group');
@@ -317,17 +318,22 @@
       toShow.forEach(log => {
         const line = document.createElement('div');
         line.className = 'log-line';
-        // Only display HH:MM:SS.mmm from the full timestamp
-        const timePart = log.timestamp.includes(' ')
-          ? log.timestamp.split(' ')[1]
-          : log.timestamp;
+        const localTime = utcToLocalTime(log.timestamp);
         line.innerHTML = `
-          <span class="log-time">${escapeHtml(timePart)}</span>
+          <span class="log-time">${escapeHtml(localTime)}</span>
           <span class="badge badge-${log.level}">${log.level}</span>
           <span class="log-msg">${escapeHtml(log.message)}</span>
         `;
         output.appendChild(line);
       });
+    }
+
+    // Convert a CloudWatch UTC timestamp (e.g. "2026-05-18 14:17:32.639") to local HH:MM:SS.mmm
+    function utcToLocalTime(ts) {
+      const d = new Date(ts.replace(' ', 'T') + 'Z');
+      const pad = n => String(n).padStart(2, '0');
+      const ms = String(d.getMilliseconds()).padStart(3, '0');
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${ms}`;
     }
 
     // ── Metadata ──────────────────────────────────────────────────────────
