@@ -7,7 +7,7 @@ set -euo pipefail
 # Installs the app as a persistent background service using launchd.
 #
 # Usage:
-#   ./scripts/install-production.sh <install-directory> <plist-name>
+#   ./scripts/install-production.sh <install-directory> <plist-name> <port>
 #
 # What it does:
 #   1. Builds the project
@@ -20,15 +20,16 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 INSTALL_DIR="${1:-}"
 PLIST_NAME="${2:-}"
+PORT="${3:-3128}"
 PLIST_FILE="$HOME/Library/LaunchAgents/$PLIST_NAME"
 LOG_DIR="$INSTALL_DIR/logs"
 
 # ── Validate arguments ──────────────────────────────────────────────────────
 if [ -z "$INSTALL_DIR" ] || [ -z "$PLIST_NAME" ]; then
-  echo "Usage: $0 <install-directory> <plist-name>"
+  echo "Usage: $0 <install-directory> <plist-name> <port>"
   echo ""
   echo "Example:"
-  echo "  $0 \$HOME/global/cloudwatch-viewer-installations/production com.cloudwatch-viewer.plist"
+  echo "  $0 \$HOME/global/cloudwatch-viewer-installations/production com.cloudwatch-viewer.plist 3128"
   exit 1
 fi
 
@@ -131,6 +132,11 @@ cat > "$PLIST_FILE" <<EOF
         <string>$NODE_BIN</string>
         <string>dist/src/server.js</string>
     </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PORT</key>
+        <string>$PORT</string>
+    </dict>
     <key>KeepAlive</key>
     <true/>
     <key>RunAtLoad</key>
@@ -151,10 +157,18 @@ info "Loading launchd service..."
 # Unload existing service if present
 if launchctl list | grep -q "$SERVICE_LABEL"; then
   warn "Service already loaded — unloading first..."
-  launchctl unload "$PLIST_FILE" 2>/dev/null || true
+  launchctl bootout "gui/$(id -u)/$SERVICE_LABEL" 2>/dev/null || true
+  sleep 1
 fi
 
-launchctl load "$PLIST_FILE"
+# Kill any stale process still holding the port
+if lsof -ti:"$PORT" &>/dev/null; then
+  warn "Port $PORT is still in use — killing stale process..."
+  lsof -ti:"$PORT" | xargs kill -9 2>/dev/null || true
+  sleep 1
+fi
+
+launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
 ok "Service loaded"
 
 # ── Step 6: Verify ──────────────────────────────────────────────────────────
@@ -168,12 +182,6 @@ else
   error "  $LOG_DIR/stdout.log"
   error "  $LOG_DIR/stderr.log"
   exit 1
-fi
-
-# Try to read port from config
-PORT=3128
-if [ -f "$INSTALL_DIR/config.ts" ]; then
-  PORT=$(grep -o 'PORT = [0-9]*' "$INSTALL_DIR/config.ts" | grep -o '[0-9]*' || echo 3128)
 fi
 
 info "CloudWatch Viewer is running at http://localhost:$PORT"

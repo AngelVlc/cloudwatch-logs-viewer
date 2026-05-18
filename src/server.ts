@@ -5,9 +5,11 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { LOG_GROUPS, PORT } from "../config.js";
+import { LOG_GROUPS, PORT as CONFIG_PORT } from "../config.js";
 import { fetchLogsByRequestId } from "./cloudwatch.js";
 import { parseLogEvents } from "./parser.js";
+
+const PORT = Number(process.env.PORT) || CONFIG_PORT;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
