@@ -154,7 +154,10 @@ ok "Plist created"
 # ── Step 5: Load the service ────────────────────────────────────────────────
 info "Loading launchd service..."
 
-# Unload existing service if present
+# Always attempt to unload by label first (safe if not loaded)
+launchctl bootout "gui/$(id -u)/$SERVICE_LABEL" 2>/dev/null || true
+
+# Unload existing service if still present
 if launchctl list | grep -q "$SERVICE_LABEL"; then
   warn "Service already loaded — unloading first..."
   launchctl bootout "gui/$(id -u)/$SERVICE_LABEL" 2>/dev/null || true
@@ -176,10 +179,18 @@ for i in {1..10}; do
   sleep 0.5
 done
 
-if ! launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE" 2>/dev/null; then
-  error "Failed to bootstrap service. The plist may still be loaded."
-  error "Try: launchctl bootout gui/$(id -u)/$SERVICE_LABEL"
-  exit 5
+# Bootstrap with one automatic retry in case launchd is still settling
+BOOTSTRAP_ERR=""
+if ! BOOTSTRAP_ERR=$(launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE" 2>&1); then
+  warn "First bootstrap attempt failed, retrying once..."
+  launchctl bootout "gui/$(id -u)/$SERVICE_LABEL" 2>/dev/null || true
+  sleep 1
+  if ! BOOTSTRAP_ERR=$(launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE" 2>&1); then
+    error "Failed to bootstrap service. launchctl output:"
+    error "  $BOOTSTRAP_ERR"
+    error "Try: launchctl bootout gui/$(id -u)/$SERVICE_LABEL"
+    exit 5
+  fi
 fi
 ok "Service loaded"
 
