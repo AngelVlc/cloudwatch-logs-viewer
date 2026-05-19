@@ -158,31 +158,49 @@ info "Loading launchd service..."
 if launchctl list | grep -q "$SERVICE_LABEL"; then
   warn "Service already loaded — unloading first..."
   launchctl bootout "gui/$(id -u)/$SERVICE_LABEL" 2>/dev/null || true
-  sleep 1
+  sleep 2
 fi
 
 # Kill any stale process still holding the port
 if lsof -ti:"$PORT" &>/dev/null; then
   warn "Port $PORT is still in use — killing stale process..."
   lsof -ti:"$PORT" | xargs kill -9 2>/dev/null || true
-  sleep 1
+  sleep 2
 fi
 
-launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
+# Ensure service is fully unloaded before bootstrapping
+for i in {1..10}; do
+  if ! launchctl list | grep -q "$SERVICE_LABEL"; then
+    break
+  fi
+  sleep 0.5
+done
+
+if ! launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE" 2>/dev/null; then
+  error "Failed to bootstrap service. The plist may still be loaded."
+  error "Try: launchctl bootout gui/$(id -u)/$SERVICE_LABEL"
+  exit 5
+fi
 ok "Service loaded"
 
 # ── Step 6: Verify ──────────────────────────────────────────────────────────
 info "Verifying service..."
-sleep 2
 
-if launchctl list | grep -q "$SERVICE_LABEL"; then
-  ok "Service is running"
-else
-  error "Service failed to start. Check logs at:"
-  error "  $LOG_DIR/stdout.log"
-  error "  $LOG_DIR/stderr.log"
-  exit 1
-fi
+# Wait for server to become responsive on the port
+for attempt in {1..30}; do
+  if curl -s http://localhost:$PORT &>/dev/null; then
+    ok "Service is running at http://localhost:$PORT"
+    break
+  fi
+  if [ $attempt -eq 30 ]; then
+    error "Service failed to start. Check logs at:"
+    error "  $LOG_DIR/stdout.log"
+    error "  $LOG_DIR/stderr.log"
+    error "Process status: $(launchctl list | grep $SERVICE_LABEL || echo 'Not in launchctl list')"
+    exit 1
+  fi
+  sleep 1
+done
 
 info "CloudWatch Viewer is running at http://localhost:$PORT"
 ok "Installation complete"

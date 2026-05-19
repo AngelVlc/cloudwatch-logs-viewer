@@ -63,6 +63,7 @@ app.get("/api/logs", async (req, res) => {
     const rawEvents = await fetchLogsByRequestId({
       logGroupName: groupConfig.value,
       region: groupConfig.region,
+      profile: groupConfig.profile,
       requestId,
       startTime: start,
       endTime: end,

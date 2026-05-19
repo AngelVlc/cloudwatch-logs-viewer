@@ -9,16 +9,15 @@ import {
   QueryStatus,
 } from "@aws-sdk/client-cloudwatch-logs";
 import { fromIni } from "@aws-sdk/credential-providers";
-import { AWS_PROFILE } from "../config.js";
 import type { RawLogEvent } from "./parser.js";
 
 const POLL_INTERVAL_MS = 500;
 const MAX_POLL_ATTEMPTS = 60; // 30 seconds max
 
-function buildClient(region: string): CloudWatchLogsClient {
+function buildClient(region: string, profile: string): CloudWatchLogsClient {
   return new CloudWatchLogsClient({
     region,
-    credentials: fromIni({ profile: AWS_PROFILE }),
+    credentials: fromIni({ profile }),
   });
 }
 
@@ -28,11 +27,12 @@ function buildClient(region: string): CloudWatchLogsClient {
 export async function fetchLogsByRequestId(params: {
   logGroupName: string;
   region: string;
+  profile: string;
   requestId: string;
   startTime: Date;
   endTime: Date;
 }): Promise<RawLogEvent[]> {
-  const client = buildClient(params.region);
+  const client = buildClient(params.region, params.profile);
 
   // CloudWatch Logs Insights query — filter by request ID, return all fields sorted by time
   const query = `fields @timestamp, @logStream, @message

@@ -42,11 +42,10 @@ export const LOG_GROUPS = [
     label: "Production API",           // shown in the UI dropdown
     value: "/aws/lambda/my-function",  // actual CloudWatch log group name
     region: "us-east-1",
+    profile: "my-aws-profile",         // from ~/.aws/credentials
   },
   // add more log groups as needed
 ];
-
-export const AWS_PROFILE = "my-aws-profile"; // from ~/.aws/credentials
 ```
 
 ### 3. Start the server
