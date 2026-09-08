@@ -103,13 +103,7 @@ Install the app as a persistent background service on macOS:
 Example:
 
 ```bash
-./scripts/install-production.sh ~/global/cloudwatch-viewer-installations/production com.cloudwatch-viewer.plist 3128
-```
-
-Example:
-
-```bash
-./scripts/install-production.sh ~/cloudwatch-viewer/production com.cloudwatch-viewer.production.plist
+./scripts/install-production.sh ~/global/cloudwatch-viewer-installations/237-global com.cloudwatch-viewer.237-global.plist 3130 
 ```
 
 This will:
