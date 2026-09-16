@@ -133,8 +133,18 @@
       display: none;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
       max-width: 900px;
       margin-bottom: 12px;
+    }
+    #local-filter {
+      flex: 1 1 240px;
+      min-width: 220px;
+    }
+    #filter-count {
+      color: #6b7280;
+      font-size: 11px;
+      white-space: nowrap;
     }
     .filter-toggle {
       display: flex;
@@ -164,6 +174,12 @@
 
     .log-time { color: #4b5563; white-space: nowrap; }
     .log-msg { word-break: break-word; white-space: pre-wrap; }
+    .log-msg mark {
+      background: #facc15;
+      color: #111827;
+      border-radius: 2px;
+      padding: 0 2px;
+    }
 
     .badge {
       display: inline-block;
@@ -231,6 +247,8 @@
   </div>
 
   <div id="filters-bar">
+    <input id="local-filter" type="search" placeholder="Search in results" aria-label="Search in results" />
+    <span id="filter-count" aria-live="polite"></span>
     <label class="filter-toggle">
       <input type="checkbox" id="toggle-debug" checked /> Show DEBUG
     </label>
@@ -334,6 +352,7 @@
     });
 
     // ── Filters ───────────────────────────────────────────────────────────
+    document.getElementById('local-filter').addEventListener('input', renderLogs);
     document.getElementById('toggle-debug').addEventListener('change', renderLogs);
     document.getElementById('toggle-report').addEventListener('change', renderLogs);
     document.getElementById('quick-now-range').addEventListener('click', setNowPlusMinusTenMinutes);
@@ -341,14 +360,19 @@
     function renderLogs() {
       const showDebug  = document.getElementById('toggle-debug').checked;
       const showReport = document.getElementById('toggle-report').checked;
+      const localFilter = document.getElementById('local-filter').value.trim();
 
       const systemLevels = new Set(['START', 'END', 'REPORT']);
 
       const toShow = allLogs.filter(log => {
         if (!showDebug && log.level === 'DEBUG') return false;
         if (!showReport && systemLevels.has(log.level)) return false;
+        if (localFilter && !log.message.toLocaleLowerCase().includes(localFilter.toLocaleLowerCase())) return false;
         return true;
       });
+
+      document.getElementById('filter-count').textContent =
+        `${toShow.length} of ${allLogs.length} lines`;
 
       const output = document.getElementById('log-output');
       output.innerHTML = '';
@@ -360,7 +384,7 @@
         line.innerHTML = `
           <span class="log-time">${escapeHtml(localTime)}</span>
           <span class="badge badge-${log.level}">${log.level}</span>
-          <span class="log-msg">${escapeHtml(log.message)}</span>
+          <span class="log-msg">${highlightMatches(log.message, localFilter)}</span>
         `;
         output.appendChild(line);
       });
@@ -408,6 +432,8 @@
     function clearResults() {
       document.getElementById('metadata').style.display = 'none';
       document.getElementById('filters-bar').style.display = 'none';
+      document.getElementById('local-filter').value = '';
+      document.getElementById('filter-count').textContent = '';
       document.getElementById('log-output').innerHTML = '';
       allLogs = [];
     }
@@ -417,6 +443,25 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+    function highlightMatches(str, query) {
+      if (!query) return escapeHtml(str);
+
+      const pattern = new RegExp(escapeRegex(query), 'gi');
+      let result = '';
+      let lastIndex = 0;
+
+      str.replace(pattern, (match, offset) => {
+        result += escapeHtml(str.slice(lastIndex, offset));
+        result += `<mark>${escapeHtml(match)}</mark>`;
+        lastIndex = offset + match.length;
+        return match;
+      });
+
+      return result + escapeHtml(str.slice(lastIndex));
+    }
+    function escapeRegex(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     // ── Init ───────────────────────────────────────────────────────────────
