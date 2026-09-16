@@ -6,7 +6,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { LOG_GROUPS, PORT as CONFIG_PORT } from "../config.js";
-import { fetchLogsByRequestId } from "./cloudwatch.js";
+import { fetchLogsByMessage } from "./cloudwatch.js";
 import { parseLogEvents } from "./parser.js";
 
 const PORT = Number(process.env.PORT) || CONFIG_PORT;
@@ -25,20 +25,20 @@ app.get("/api/config", (_req, res) => {
 
 // ── GET /api/logs ────────────────────────────────────────────────────────────
 // Query params:
-//   - requestId  (required)
+//   - message    (required)
 //   - logGroup   (required, must match a configured log group value)
 //   - startTime  (required, ISO 8601 string)
 //   - endTime    (required, ISO 8601 string)
 app.get("/api/logs", async (req, res) => {
-  const { requestId, logGroup, startTime, endTime } = req.query;
+  const { message, logGroup, startTime, endTime } = req.query;
 
   if (
-    typeof requestId !== "string" ||
+    typeof message !== "string" ||
     typeof logGroup !== "string" ||
     typeof startTime !== "string" ||
     typeof endTime !== "string"
   ) {
-    res.status(400).json({ error: "Missing required query params: requestId, logGroup, startTime, endTime" });
+    res.status(400).json({ error: "Missing required query params: message, logGroup, startTime, endTime" });
     return;
   }
 
@@ -60,17 +60,17 @@ app.get("/api/logs", async (req, res) => {
   }
 
   try {
-    const rawEvents = await fetchLogsByRequestId({
+    const rawEvents = await fetchLogsByMessage({
       logGroupName: groupConfig.value,
       region: groupConfig.region,
       profile: groupConfig.profile,
-      requestId,
+      message,
       startTime: start,
       endTime: end,
     });
 
     if (rawEvents.length === 0) {
-      res.json({ found: false, requestId });
+      res.json({ found: false, message });
       return;
     }
 

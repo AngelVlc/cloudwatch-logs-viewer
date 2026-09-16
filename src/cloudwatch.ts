@@ -22,21 +22,21 @@ function buildClient(region: string, profile: string): CloudWatchLogsClient {
 }
 
 /**
- * Fetches all log events for a given request ID within the time range.
+ * Fetches all log events containing a given message within the time range.
  */
-export async function fetchLogsByRequestId(params: {
+export async function fetchLogsByMessage(params: {
   logGroupName: string;
   region: string;
   profile: string;
-  requestId: string;
+  message: string;
   startTime: Date;
   endTime: Date;
 }): Promise<RawLogEvent[]> {
   const client = buildClient(params.region, params.profile);
 
-  // CloudWatch Logs Insights query — filter by request ID, return all fields sorted by time
+  // CloudWatch Logs Insights query — filter by message, return all fields sorted by time
   const query = `fields @timestamp, @logStream, @message
-| filter @message like /${params.requestId}/
+| filter @message like /${params.message}/
 | sort @timestamp asc
 | limit 500`;
 

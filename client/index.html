@@ -202,8 +202,8 @@
 
   <form id="search-form">
     <div class="field full">
-      <label for="requestId">Request ID</label>
-      <input id="requestId" type="text" placeholder="c35c9eda-826c-41b5-97a8-3209c857eb88" required />
+      <label for="message">Message</label>
+      <input id="message" type="text" placeholder="Search text in log messages" required />
     </div>
     <div class="field full">
       <label for="logGroup">Log Group (one at a time)</label>
@@ -291,7 +291,7 @@
     // ── Search ────────────────────────────────────────────────────────────
     document.getElementById('search-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const requestId = document.getElementById('requestId').value.trim();
+      const message = document.getElementById('message').value.trim();
       const logGroup  = document.getElementById('logGroup').value;
       const startTime = new Date(document.getElementById('startTime').value).toISOString();
       const endTime   = new Date(document.getElementById('endTime').value).toISOString();
@@ -308,7 +308,7 @@
       btn.disabled = true;
 
       try {
-        const params = new URLSearchParams({ requestId, logGroup, startTime, endTime });
+        const params = new URLSearchParams({ message, logGroup, startTime, endTime });
         const res = await fetch(`/api/logs?${params}`);
         const data = await res.json();
 
@@ -318,7 +318,7 @@
         }
 
         if (!data.found) {
-          setStatus('empty', `No logs found for request ID: ${requestId}`);
+          setStatus('empty', `No logs found for message: ${message}`);
           return;
         }
 

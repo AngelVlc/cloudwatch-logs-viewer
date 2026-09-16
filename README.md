@@ -86,7 +86,7 @@ cloudwatch-viewer/
 | Endpoint | Description |
 |---|---|
 | `GET /api/config` | Returns available log groups for the UI |
-| `GET /api/logs?requestId=...&logGroup=...&startTime=...&endTime=...` | Queries and returns parsed logs |
+| `GET /api/logs?message=...&logGroup=...&startTime=...&endTime=...` | Queries and returns parsed logs |
 
 `startTime` and `endTime` accept ISO 8601 strings.
 
