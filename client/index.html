@@ -146,6 +146,27 @@
       font-size: 11px;
       white-space: nowrap;
     }
+    .results-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .secondary-btn {
+      background: #0f172a;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .secondary-btn:hover {
+      background: #1e293b;
+      border-color: #475569;
+    }
     .filter-toggle {
       display: flex;
       align-items: center;
@@ -249,6 +270,10 @@
   <div id="filters-bar">
     <input id="local-filter" type="search" placeholder="Search in results" aria-label="Search in results" />
     <span id="filter-count" aria-live="polite"></span>
+    <div class="results-actions">
+      <button type="button" id="copy-logs" class="secondary-btn">Copy logs</button>
+      <button type="button" id="download-logs" class="secondary-btn">Download logs</button>
+    </div>
     <label class="filter-toggle">
       <input type="checkbox" id="toggle-debug" checked /> Show DEBUG
     </label>
@@ -356,6 +381,8 @@
     document.getElementById('toggle-debug').addEventListener('change', renderLogs);
     document.getElementById('toggle-report').addEventListener('change', renderLogs);
     document.getElementById('quick-now-range').addEventListener('click', setNowPlusMinusTenMinutes);
+    document.getElementById('copy-logs').addEventListener('click', copyLogs);
+    document.getElementById('download-logs').addEventListener('click', downloadLogs);
 
     function renderLogs() {
       const showDebug  = document.getElementById('toggle-debug').checked;
@@ -462,6 +489,44 @@
     }
     function escapeRegex(str) {
       return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    function getLogsText() {
+      const lines = allLogs.map(log => `${log.timestamp} ${log.level.padEnd(7)} ${log.message}`);
+      return `${lines.join('\n')}\n`;
+    }
+    async function copyLogs() {
+      if (allLogs.length === 0) {
+        return;
+      }
+
+      const button = document.getElementById('copy-logs');
+      const originalText = button.textContent;
+      try {
+        await navigator.clipboard.writeText(getLogsText());
+        button.textContent = 'Copied';
+      } catch (err) {
+        setStatus('error', `Could not copy logs: ${err.message}`);
+        return;
+      }
+
+      setTimeout(() => {
+        button.textContent = originalText;
+      }, 1500);
+    }
+    function downloadLogs() {
+      if (allLogs.length === 0) {
+        return;
+      }
+
+      const blob = new Blob([getLogsText()], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cloudwatch-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     }
 
     // ── Init ───────────────────────────────────────────────────────────────
