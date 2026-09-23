@@ -232,6 +232,49 @@
     #status.loading { background: #1e2130; color: #9ca3af; display: block; }
     #status.error   { background: #4b1c1c; color: #f87171; display: block; }
     #status.empty   { background: #1e2130; color: #9ca3af; display: block; }
+
+    /* ── Page navigation ────────────────────────────────────────────────── */
+    #page-navigation {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .page-nav-btn {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      background: #1e2130;
+      color: #cbd5e1;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgb(0 0 0 / 25%);
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+    .page-nav-btn:hover {
+      background: #2a2f42;
+      border-color: #6366f1;
+    }
+    .page-nav-btn:focus-visible {
+      outline: 2px solid #a5b4fc;
+      outline-offset: 2px;
+    }
+    .page-nav-btn[hidden] { display: none; }
+
+    @media (max-width: 600px) {
+      #page-navigation {
+        right: 12px;
+        bottom: 12px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -283,6 +326,11 @@
   </div>
 
   <div id="log-output"></div>
+
+  <nav id="page-navigation" aria-label="Page navigation" hidden>
+    <button type="button" class="page-nav-btn" id="scroll-top" aria-label="Go to top" title="Go to top">↑</button>
+    <button type="button" class="page-nav-btn" id="scroll-bottom" aria-label="Go to bottom" title="Go to bottom">↓</button>
+  </nav>
 
   <script>
     let allLogs = [];
@@ -383,6 +431,14 @@
     document.getElementById('quick-now-range').addEventListener('click', setNowPlusMinusTenMinutes);
     document.getElementById('copy-logs').addEventListener('click', copyLogs);
     document.getElementById('download-logs').addEventListener('click', downloadLogs);
+    document.getElementById('scroll-top').addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    document.getElementById('scroll-bottom').addEventListener('click', () => {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    });
+    window.addEventListener('scroll', updatePageNavigation, { passive: true });
+    window.addEventListener('resize', updatePageNavigation);
 
     function renderLogs() {
       const showDebug  = document.getElementById('toggle-debug').checked;
@@ -415,6 +471,14 @@
         `;
         output.appendChild(line);
       });
+
+      updatePageNavigation();
+    }
+
+    function updatePageNavigation() {
+      const navigation = document.getElementById('page-navigation');
+      const hasScrollableContent = document.documentElement.scrollHeight > window.innerHeight + 1;
+      navigation.hidden = !hasScrollableContent;
     }
 
     // Convert a CloudWatch UTC timestamp (e.g. "2026-05-18 14:17:32.639") to local HH:MM:SS.mmm
@@ -463,6 +527,7 @@
       document.getElementById('filter-count').textContent = '';
       document.getElementById('log-output').innerHTML = '';
       allLogs = [];
+      updatePageNavigation();
     }
     function escapeHtml(str) {
       return String(str)
@@ -532,6 +597,7 @@
     // ── Init ───────────────────────────────────────────────────────────────
     loadConfig();
     prefillTimes();
+    updatePageNavigation();
   </script>
 </body>
 </html>
