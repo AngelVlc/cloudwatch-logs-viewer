@@ -38,7 +38,7 @@ export async function fetchLogsByMessage(params: {
   const query = `fields @timestamp, @logStream, @message
 | filter @message like /${params.message}/
 | sort @timestamp asc
-| limit 500`;
+| limit 10000`;
 
   const startResult = await client.send(
     new StartQueryCommand({
