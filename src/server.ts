@@ -20,21 +20,26 @@ app.use(express.static(path.join(process.cwd(), "client")));
 // ── GET /api/config ─────────────────────────────────────────────────────────
 // Returns available log groups for the UI dropdown
 app.get("/api/config", (_req, res) => {
-  res.json({ logGroups: LOG_GROUPS.map((g) => ({ label: g.label, value: g.value })) });
+  res.json({
+    logGroups: LOG_GROUPS.map((g, index) => ({
+      id: String(index),
+      label: g.label,
+    })),
+  });
 });
 
 // ── GET /api/logs ────────────────────────────────────────────────────────────
 // Query params:
 //   - message    (required)
-//   - logGroup   (required, must match a configured log group value)
+//   - logGroupId (required, must match a configured log group ID)
 //   - startTime  (required, ISO 8601 string)
 //   - endTime    (required, ISO 8601 string)
 app.get("/api/logs", async (req, res) => {
-  const { message, logGroup, startTime, endTime } = req.query;
+  const { message, logGroupId, startTime, endTime } = req.query;
 
   if (
     typeof message !== "string" ||
-    typeof logGroup !== "string" ||
+    typeof logGroupId !== "string" ||
     typeof startTime !== "string" ||
     typeof endTime !== "string"
   ) {
@@ -42,9 +47,9 @@ app.get("/api/logs", async (req, res) => {
     return;
   }
 
-  const groupConfig = LOG_GROUPS.find((g) => g.value === logGroup);
+  const groupConfig = LOG_GROUPS.find((_, index) => String(index) === logGroupId);
   if (!groupConfig) {
-    res.status(400).json({ error: `Unknown log group: ${logGroup}` });
+    res.status(400).json({ error: `Unknown log group ID: ${logGroupId}` });
     return;
   }
 

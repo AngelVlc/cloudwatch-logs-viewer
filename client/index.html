@@ -350,7 +350,7 @@
 
       data.logGroups.forEach(g => {
         const opt = document.createElement('option');
-        opt.value = g.value;
+        opt.value = g.id;
         opt.textContent = g.label;
         select.appendChild(opt);
       });
@@ -383,11 +383,11 @@
     document.getElementById('search-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const message = document.getElementById('message').value.trim();
-      const logGroup  = document.getElementById('logGroup').value;
+      const logGroupId = document.getElementById('logGroup').value;
       const startTime = new Date(document.getElementById('startTime').value).toISOString();
       const endTime   = new Date(document.getElementById('endTime').value).toISOString();
 
-      if (!logGroup) {
+      if (!logGroupId) {
         setStatus('error', 'Please select one log group');
         return;
       }
@@ -399,7 +399,7 @@
       btn.disabled = true;
 
       try {
-        const params = new URLSearchParams({ message, logGroup, startTime, endTime });
+        const params = new URLSearchParams({ message, logGroupId, startTime, endTime });
         const res = await fetch(`/api/logs?${params}`);
         const data = await res.json();
 
