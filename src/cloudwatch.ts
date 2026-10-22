@@ -32,6 +32,16 @@ export async function fetchLogsByMessage(params: {
   startTime: Date;
   endTime: Date;
 }): Promise<RawLogEvent[]> {
+  const startedAt = Date.now();
+  console.info("[cloudwatch-viewer] Starting CloudWatch query", {
+    logGroupName: params.logGroupName,
+    region: params.region,
+    profile: params.profile,
+    message: params.message,
+    startTime: params.startTime.toISOString(),
+    endTime: params.endTime.toISOString(),
+  });
+
   const client = buildClient(params.region, params.profile);
 
   // CloudWatch Logs Insights query — filter by message, return all fields sorted by time
@@ -64,11 +74,16 @@ export async function fetchLogsByMessage(params: {
       status === QueryStatus.Cancelled ||
       status === QueryStatus.Timeout
     ) {
+      console.warn("[cloudwatch-viewer] CloudWatch query did not complete", {
+        queryId,
+        status,
+        elapsedMs: Date.now() - startedAt,
+      });
       throw new Error(`CloudWatch query ended with status: ${status}`);
     }
 
     if (status === QueryStatus.Complete) {
-      return (result.results ?? []).map((row) => {
+      const events = (result.results ?? []).map((row) => {
         const get = (field: string) =>
           row.find((f) => f.field === field)?.value ?? "";
         return {
@@ -77,9 +92,19 @@ export async function fetchLogsByMessage(params: {
           message: get("@message"),
         };
       });
+      console.info("[cloudwatch-viewer] CloudWatch query completed", {
+        queryId,
+        resultCount: events.length,
+        elapsedMs: Date.now() - startedAt,
+      });
+      return events;
     }
   }
 
+  console.warn("[cloudwatch-viewer] CloudWatch query timed out", {
+    logGroupName: params.logGroupName,
+    elapsedMs: Date.now() - startedAt,
+  });
   throw new Error("CloudWatch query timed out after 30 seconds");
 }
 
